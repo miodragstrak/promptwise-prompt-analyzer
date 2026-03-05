@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { PromptResult } from "../../src/types/promptTypes"
+import type { PromptResult } from "../lib/types/promptTypes"
 
 function Chip({ label }: { label: string }) {
   return (
