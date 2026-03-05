@@ -1,4 +1,4 @@
-import { runPromptPipeline } from "../../../../src/pipeline/analyzePrompt"
+import { runPromptPipeline } from "../../../lib/pipeline/analyzePrompt"
 
 export async function POST(req: Request) {
 

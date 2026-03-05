@@ -8,7 +8,6 @@ import { detectMissingFields } from "../analyzer/missingFields"
 import { enhancePrompt } from "../analyzer/promptEnhancer"
 import { parsePromptWithLLM } from "../analyzer/llmPromptParser"
 import { calculatePromptRichness } from "../analyzer/promptRichness"
-import { number } from "zod"
 
 export async function runPromptPipeline(prompt: string): Promise<PromptResult> {
 
