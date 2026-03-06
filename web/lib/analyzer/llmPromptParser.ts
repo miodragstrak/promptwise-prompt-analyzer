@@ -1,70 +1,80 @@
 import OpenAI from "openai"
-import { z } from "zod"
-
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error("OPENAI_API_KEY is not set in environment variables")
-}
+import { PromptAnalysis } from "../types/promptTypes"
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-const PromptSchema = z.object({
-  subject: z.string().nullable(),
-  action: z.string().nullable(),
-  environment: z.string().nullable(),
-  lighting: z.string().nullable(),
-  style: z.string().nullable(),
-  camera: z.string().nullable(),
-  objects: z.array(z.string()).nullable(),
-  mood: z.string().nullable()
-})
+export async function parsePromptWithLLM(
+  prompt: string
+): Promise<PromptAnalysis> {
 
-function normalizeLLMOutput(data: PromptSchemaType) {
-  return {
-    subject: data.subject ?? undefined,
-    action: data.action ?? undefined,
-    environment: data.environment ?? undefined,
-    lighting: data.lighting ?? undefined,
-    style: data.style ?? undefined,
-    camera: data.camera ?? undefined,
-    objects: data.objects ?? undefined,
-    mood: data.mood ?? undefined
-  }
-}
-
-export type PromptSchemaType = z.infer<typeof PromptSchema>
-
-import { PromptAnalysis } from "../types/promptTypes"
-
-export async function parsePromptWithLLM(prompt: string): Promise<PromptAnalysis>{
-
-  const response = await openai.responses.parse({
+  const response = await openai.responses.create({
     model: "gpt-4.1-mini",
     input: [
       {
         role: "system",
-        content: "Extract structured prompt data for AI media generation."
+        content: `
+Extract the structure of the prompt.
+
+Return ONLY JSON in this format:
+
+{
+ "subject": string | null,
+ "action": string | null,
+ "environment": string | null,
+ "lighting": string | null,
+ "style": string | null,
+ "camera": string | null,
+ "objects": string[] | null,
+ "mood": string | null
+}
+`
       },
       {
         role: "user",
         content: prompt
       }
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "prompt_structure",
-        schema: PromptSchema.shape
-      }
-    }
+    ]
   })
 
-  const parsed = response.output_parsed
+  const text = response.output_text
 
-if (!parsed) {
-  throw new Error("LLM returned empty response")
-}
+  try {
 
-return normalizeLLMOutput(parsed)
+    const cleaned = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim()
+
+    const parsed = JSON.parse(cleaned)
+
+    return {
+      subject: parsed.subject ?? undefined,
+      action: parsed.action ?? undefined,
+      environment: parsed.environment ?? undefined,
+      lighting: parsed.lighting ?? undefined,
+      style: parsed.style ?? undefined,
+      camera: parsed.camera ?? undefined,
+      objects: parsed.objects ?? undefined,
+      mood: parsed.mood ?? undefined
+    }
+
+  } catch (err) {
+
+    console.warn("LLM returned invalid JSON", err)
+
+    return {
+      subject: undefined,
+      action: undefined,
+      environment: undefined,
+      lighting: undefined,
+      style: undefined,
+      camera: undefined,
+      objects: undefined,
+      mood: undefined
+    }
+
+  }
+
 }

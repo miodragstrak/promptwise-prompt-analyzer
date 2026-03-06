@@ -28,4 +28,5 @@ export interface PromptResult {
   complexity: string
   intent: string
   richness: number
+  scenePlan?: string
 }

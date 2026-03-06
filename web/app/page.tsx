@@ -26,6 +26,43 @@ function MetricCard({
   )
 }
 
+type SceneShot = {
+  shot: string
+  description: string
+}
+
+function parseScenePlan(sceneText: string): SceneShot[] {
+
+  try {
+
+    const cleaned = sceneText
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .replace(/^json/g, "")
+      .trim()
+
+    const parsed = JSON.parse(cleaned)
+
+    if (Array.isArray(parsed)) {
+      return parsed
+    }
+
+    if (parsed.shots) {
+      return parsed.shots
+    }
+
+    return []
+
+  } catch (err) {
+
+    console.warn("Scene parsing failed:", err)
+
+    return []
+
+  }
+
+}
+
 export default function Home() {
 
   const [prompt, setPrompt] = useState("")
@@ -154,6 +191,47 @@ export default function Home() {
           <h2 className="font-bold mb-2">Enhanced Prompt</h2>
           <p>{result.enhanced_prompt}</p>
         </div>
+
+        {/* Scene Plan */}
+
+          {result.scenePlan && (
+
+        <div className="border border-[#1F1F1F] rounded-lg p-6 bg-[#0B0B0B]">
+
+          <h2 className="text-lg font-semibold mb-4">
+            Scene Plan
+          </h2>
+
+          <div className="grid gap-4">
+
+            {parseScenePlan(result.scenePlan).map((shot: SceneShot, i: number) => (
+
+              <div
+                key={i}
+                className="border border-[#1F1F1F] rounded-md p-4 bg-[#111111]"
+              >
+
+                <p className="text-xs text-gray-400 mb-1">
+                  Shot {i + 1}
+                </p>
+
+                <p className="text-sm font-medium">
+                  {shot.shot}
+                </p>
+
+                <p className="text-xs text-gray-400 mt-1">
+                  {shot.description}
+                </p>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </div>
+
+      )}
 
       </div>
     )}

@@ -8,6 +8,7 @@ import { detectMissingFields } from "../analyzer/missingFields"
 import { enhancePrompt } from "../analyzer/promptEnhancer"
 import { parsePromptWithLLM } from "../analyzer/llmPromptParser"
 import { calculatePromptRichness } from "../analyzer/promptRichness"
+import { generateScenePlan } from "../analyzer/scenePlanner"
 
 export async function runPromptPipeline(prompt: string): Promise<PromptResult> {
 
@@ -37,12 +38,14 @@ export async function runPromptPipeline(prompt: string): Promise<PromptResult> {
   const builder_mode = decideBuilderMode(confidence)
 
   // 7️⃣ Missing fields
-  const missing_fields = detectMissingFields(analysis)
+  const missing_fields = detectMissingFields(analysis, intent)
 
   // 8️⃣ Prompt enhancement
   const enhanced_prompt = enhancePrompt(prompt, analysis)
 
   const richness = calculatePromptRichness(prompt, analysis)
+
+const scenePlan = (await generateScenePlan(prompt)) ?? undefined
 
   return {
     analysis,
@@ -52,6 +55,7 @@ export async function runPromptPipeline(prompt: string): Promise<PromptResult> {
     enhanced_prompt,
     complexity,
     intent,
-    richness
+    richness,
+    scenePlan  
   }
 }

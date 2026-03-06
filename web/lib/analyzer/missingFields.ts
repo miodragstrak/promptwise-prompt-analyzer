@@ -1,6 +1,6 @@
 import { PromptAnalysis } from "../types/promptTypes"
 
-const IMPORTANT_FIELDS: (keyof PromptAnalysis)[] = [
+const VISUAL_FIELDS: (keyof PromptAnalysis)[] = [
   "subject",
   "action",
   "environment",
@@ -9,13 +9,24 @@ const IMPORTANT_FIELDS: (keyof PromptAnalysis)[] = [
   "camera"
 ]
 
+const AUDIO_FIELDS: (keyof PromptAnalysis)[] = [
+  "subject",
+  "style"
+]
+
 export function detectMissingFields(
-  analysis: PromptAnalysis
+  analysis: PromptAnalysis,
+  intent: string
 ): (keyof PromptAnalysis)[] {
 
   const missing: (keyof PromptAnalysis)[] = []
 
-  for (const field of IMPORTANT_FIELDS) {
+  const fields =
+    intent === "audio"
+      ? AUDIO_FIELDS
+      : VISUAL_FIELDS
+
+  for (const field of fields) {
 
     const value = analysis[field]
 
