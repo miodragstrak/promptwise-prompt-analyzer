@@ -117,17 +117,107 @@ export default function Home() {
   const [result, setResult] = useState<PromptResult | null>(null)
   const [aiPrompt, setAiPrompt] = useState(true)
   const [model, setModel] = useState("Google Nano Banana 2")
+  const [showImproveModal, setShowImproveModal] = useState(false)
+  const [health, setHealth] = useState<number | null>(null)
+  const [missing, setMissing] = useState<string[]>([])
+  const [variations, setVariations] = useState<string | null>(null)
+  const [cinematic, setCinematic] = useState<string | null>(null)
+
+async function handlePromptHealth() {
+
+  if (!result) {
+    await analyze()
+  }
+
+  const el = document.getElementById("prompt-health")
+  if (el) el.scrollIntoView({ behavior: "smooth" })
+
+}
+
+async function handleVariations() {
+
+  const res = await fetch("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({
+      prompt,
+      mode: "variations"
+    })
+  })
+
+  const data = await res.json()
+
+  setVariations(data.variations)
+
+}
+
+async function handleCinematic() {
+
+  const res = await fetch("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({
+      prompt,
+      mode: "cinematic"
+    })
+  })
+
+  const data = await res.json()
+
+  setCinematic(data.cinematic)
+
+}
+
+async function handleImprovePrompt() {
+
+  if (!result) {
+    await analyze()
+  }
+
+  setShowImproveModal(true)
+
+}
+
+function parseVariations(text: unknown): string[] {
+
+  if (!text) return []
+
+  // If LLM returned array
+  if (Array.isArray(text)) {
+    return text as string[]
+  }
+
+  // If returned string
+  if (typeof text === "string") {
+    return text
+      .split("\n")
+      .map(v => v.replace(/^\d+\.\s*/, "").trim())
+      .filter(v => v.length > 0)
+  }
+
+  // If returned OpenAI object
+  if (typeof text === "object" && text !== null && "output_text" in text) {
+    const output = (text as { output_text: string }).output_text
+    return output
+      .split("\n")
+      .map(v => v.replace(/^\d+\.\s*/, "").trim())
+      .filter(v => v.length > 0)
+  }
+
+  return []
+}
 
   async function analyze() {
 
     const res = await fetch("/api/analyze", {
       method: "POST",
-      body: JSON.stringify({ prompt, aiPrompt }),
+      body: JSON.stringify({ prompt }),
     })
 
     const data = await res.json()
 
     setResult(data)
+
+    setHealth(data.confidence)
+    setMissing(data.missing_fields)
   }
 
   return (
@@ -186,6 +276,55 @@ export default function Home() {
         onChange={(e) => setPrompt(e.target.value)}
       />
 
+      {/* Prompt Health */}
+
+      {health !== null && (
+
+      <div className="border border-[#1F1F1F] rounded-lg p-4 mt-4">
+
+        <p className="text-sm text-gray-400 mb-2">
+          Prompt Health
+        </p>
+
+        <div className="w-full bg-[#1F1F1F] rounded h-2 mb-3">
+          <div
+            className="bg-[#B6FF00] h-2 rounded"
+            style={{ width: `${health * 100}%` }}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+
+          {missing.includes("subject")
+            ? <span className="text-red-400">✘ subject</span>
+            : <span className="text-green-400">✔ subject</span>}
+
+          {missing.includes("action")
+            ? <span className="text-red-400">✘ action</span>
+            : <span className="text-green-400">✔ action</span>}
+
+          {missing.includes("environment")
+            ? <span className="text-red-400">✘ environment</span>
+            : <span className="text-green-400">✔ environment</span>}
+
+          {missing.includes("lighting")
+            ? <span className="text-red-400">✘ lighting</span>
+            : <span className="text-green-400">✔ lighting</span>}
+
+          {missing.includes("style")
+            ? <span className="text-red-400">✘ style</span>
+            : <span className="text-green-400">✔ style</span>}
+
+          {missing.includes("camera")
+            ? <span className="text-red-400">✘ camera</span>
+            : <span className="text-green-400">✔ camera</span>}
+
+        </div>
+
+      </div>
+
+      )}
+
       {/* AI Prompt toggle already here */}
 
       <div className="flex items-center justify-between mt-2">
@@ -204,24 +343,44 @@ export default function Home() {
       </div>
 
       {/* RIGHT SIDE — ICON TOOLS */}
+
       <div className="flex items-center gap-4 text-lg">
+
+        <p className="text-xs text-gray-500 mr-2">
+          Prompt Tools
+        </p>
 
         <IconToolButton
           icon="🌱"
-          title="Improve prompt"
-          onClick={() => alert("Improve prompt")}
+          title="Prompt Health"
+          onClick={handlePromptHealth}
         />
 
         <IconToolButton
           icon="🖼️"
-          title="Generate variations"
-          onClick={() => alert("Generate variations")}
+          title="Prompt Variations"
+          onClick={handleVariations}
         />
 
         <IconToolButton
           icon="📝"
-          title="Rewrite prompt"
-          onClick={() => alert("Rewrite prompt")}
+          title="Improve Prompt"
+          onClick={handleImprovePrompt}
+        />
+
+        <IconToolButton
+          icon="✨"
+          title="Cinematic Prompt"
+          onClick={handleCinematic}
+        />
+
+        <IconToolButton
+          icon="🎬"
+          title="Scene Builder"
+          onClick={() => {
+            if (!result) return
+            alert("Scene builder coming next")
+          }}
         />
 
       </div>
@@ -288,7 +447,7 @@ export default function Home() {
     </div>
 
     {/* Prompt Health */}
-      <div className="border border-[#1F1F1F] p-4 rounded-lg bg-[#0B0B0B]">
+      <div id="prompt-health" className="border border-[#1F1F1F] rounded-lg p-4 mt-4">
 
         <h2 className="font-bold mb-4">Prompt Health</h2>
 
@@ -407,6 +566,142 @@ export default function Home() {
 
       </div>
     )}
+
+    {showImproveModal && result && (
+
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+      <div className="bg-[#0B0B0B] border border-[#1F1F1F] rounded-xl p-6 w-[500px]">
+
+        <h2 className="text-lg font-semibold mb-3">
+          Improved Prompt
+        </h2>
+
+        <p className="text-sm text-gray-300">
+          {result.enhanced_prompt}
+        </p>
+
+        <div className="flex justify-between mt-4">
+
+          <button
+            className="text-sm text-gray-400"
+            onClick={() => setShowImproveModal(false)}
+          >
+            Close
+          </button>
+
+          <button
+            className="text-sm text-[#B6FF00]"
+            onClick={() => {
+              setPrompt(result.enhanced_prompt)
+              setShowImproveModal(false)
+            }}
+          >
+            Use this prompt
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )}
+
+      {variations && (
+
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+    <div className="bg-[#0B0B0B] border border-[#1F1F1F] rounded-xl p-6 w-[600px] max-h-[80vh] overflow-y-auto">
+
+
+        <h2 className="text-lg font-semibold mb-3">
+          Prompt Variations
+        </h2>
+
+        <div className="grid gap-3">
+
+        {parseVariations(variations).map((v, i) => (
+
+          <div
+            key={i}
+            className="border border-[#1F1F1F] rounded-lg p-3 bg-[#111111] hover:border-[#B6FF00] cursor-pointer transition"
+            onClick={() => {
+              setPrompt(v)
+              setVariations(null)
+            }}
+          >
+            <p className="text-xs text-gray-400 mb-3">
+              Click a variation to replace your prompt
+            </p>
+
+            <p className="text-xs text-gray-400 mb-1">
+              Variation {i + 1}
+            </p>
+
+            <p className="text-sm">
+              {v}
+            </p>
+
+          </div>
+
+        ))}
+
+      </div>
+
+        <button
+          className="mt-4 text-sm text-gray-400"
+          onClick={() => setVariations(null)}
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+
+    )}
+
+    {cinematic && (
+
+<div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+  <div className="bg-[#0B0B0B] border border-[#1F1F1F] rounded-xl p-6 w-[500px]">
+
+    <h2 className="text-lg font-semibold mb-3">
+      Cinematic Prompt
+    </h2>
+
+    <p className="text-sm">
+      {cinematic}
+    </p>
+
+    <div className="flex justify-between mt-4">
+
+      <button
+        className="text-gray-400 text-sm"
+        onClick={() => setCinematic(null)}
+      >
+        Close
+      </button>
+
+      <button
+        className="text-[#B6FF00] text-sm"
+        onClick={() => {
+          setPrompt(cinematic)
+          setCinematic(null)
+        }}
+      >
+        Use Prompt
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+)}
 
     </div>
 

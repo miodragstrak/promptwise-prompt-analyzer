@@ -8,6 +8,7 @@ export async function generateScenePlan(prompt: string) {
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
+    temperature: 0.8,
     messages: [
       {
         role: "system",
