@@ -42,17 +42,20 @@ function HealthItem({
 function IconToolButton({
   icon,
   title,
-  onClick
+  onClick,
+  disabled
 }: {
   icon: string
   title: string
   onClick?: () => void
+  disabled?: boolean
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
-      className="text-gray-400 hover:text-[#B6FF00] transition text-lg"
+      disabled={disabled}
+      className={`transition text-lg ${disabled ? "text-gray-600 cursor-not-allowed" : "text-gray-400 hover:text-[#B6FF00]"}`}
     >
       {icon}
     </button>
@@ -122,12 +125,15 @@ export default function Home() {
   const [missing, setMissing] = useState<string[]>([])
   const [variations, setVariations] = useState<string | null>(null)
   const [cinematic, setCinematic] = useState<string | null>(null)
+  const [showSceneModal, setShowSceneModal] = useState(false)
+  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [scenePlan, setScenePlan] = useState<SceneShot[] | null>(null)
 
 async function handlePromptHealth() {
 
-  if (!result) {
-    await analyze()
-  }
+if (!result) {
+  await analyzeSilent()
+}
 
   const el = document.getElementById("prompt-health")
   if (el) el.scrollIntoView({ behavior: "smooth" })
@@ -168,12 +174,32 @@ async function handleCinematic() {
 
 async function handleImprovePrompt() {
 
-  if (!result) {
-    await analyze()
-  }
+if (!result) {
+  await analyzeSilent()
+}
 
   setShowImproveModal(true)
 
+}
+
+async function handleSceneBuilder() {
+  const res = await fetch("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({
+      prompt,
+      mode: "scene"
+    })
+  })
+
+  const data = await res.json()
+
+  setResult((prev) => ({
+    ...prev,
+    scenePlan: data.scenePlan
+  } as PromptResult))
+
+  setScenePlan(data.scenePlan)
+  setShowSceneModal(true)
 }
 
 function parseVariations(text: unknown): string[] {
@@ -205,20 +231,32 @@ function parseVariations(text: unknown): string[] {
   return []
 }
 
-  async function analyze() {
+async function analyzeSilent(): Promise<PromptResult> {
 
-    const res = await fetch("/api/analyze", {
-      method: "POST",
-      body: JSON.stringify({ prompt }),
-    })
+  const res = await fetch("/api/analyze", {
+    method: "POST",
+    body: JSON.stringify({ prompt })
+  })
 
-    const data = await res.json()
+  const data = await res.json()
 
-    setResult(data)
+  setResult(data)
+  setHealth(data.confidence)
+  setMissing(data.missing_fields)
 
-    setHealth(data.confidence)
-    setMissing(data.missing_fields)
-  }
+  return data
+}
+
+async function analyze() {
+
+  const data = await analyzeSilent()
+
+  setHealth(data.confidence)
+  setMissing(data.missing_fields)
+
+  setShowAnalysis(true)
+}
+
 
   return (
     <main className="min-h-screen bg-black text-white p-10">
@@ -354,33 +392,35 @@ function parseVariations(text: unknown): string[] {
           icon="🌱"
           title="Prompt Health"
           onClick={handlePromptHealth}
-        />
-
-        <IconToolButton
-          icon="🖼️"
-          title="Prompt Variations"
-          onClick={handleVariations}
+          disabled={!prompt.trim()}
         />
 
         <IconToolButton
           icon="📝"
           title="Improve Prompt"
           onClick={handleImprovePrompt}
+          disabled={!prompt.trim()}
+        />
+
+        <IconToolButton
+          icon="🖼️"
+          title="Prompt Variations"
+          onClick={handleVariations}
+          disabled={!prompt.trim()}
         />
 
         <IconToolButton
           icon="✨"
           title="Cinematic Prompt"
           onClick={handleCinematic}
+          disabled={!prompt.trim()}
         />
 
         <IconToolButton
           icon="🎬"
           title="Scene Builder"
-          onClick={() => {
-            if (!result) return
-            alert("Scene builder coming next")
-          }}
+          onClick={handleSceneBuilder}
+          disabled={!prompt.trim()}
         />
 
       </div>
@@ -402,12 +442,12 @@ function parseVariations(text: unknown): string[] {
       <button
         onClick={analyze}
         className="border border-[#1F1F1F] bg-black text-white p-3 w-full rounded-lg">
-        Analyze Prompt
+        Full Prompt Analyzer
       </button>
 
 
 
-      {result && (
+      {showAnalysis && result && (
       <div className="mt-8 space-y-6">
 
         {/* Prompt Structure */}
@@ -535,7 +575,7 @@ function parseVariations(text: unknown): string[] {
 
           <div className="grid gap-4">
 
-            {parseScenePlan(result.scenePlan).map((shot: SceneShot, i: number) => (
+            {(typeof result.scenePlan === 'string' ? parseScenePlan(result.scenePlan) : result.scenePlan).map((shot: SceneShot, i: number) => (
 
               <div
                 key={i}
@@ -693,6 +733,60 @@ function parseVariations(text: unknown): string[] {
         }}
       >
         Use Prompt
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+)}
+
+{showSceneModal && scenePlan && ( 
+
+<div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+  <div className="bg-[#0B0B0B] border border-[#1F1F1F] rounded-xl p-6 w-[600px] max-h-[80vh] overflow-y-auto">
+
+    <h2 className="text-lg font-semibold mb-4">
+      Scene Builder
+    </h2>
+
+    <div className="grid gap-4">
+
+      {(typeof scenePlan === 'string' ? parseScenePlan(scenePlan) : scenePlan).map((shot: SceneShot, i: number) => (
+
+        <div
+          key={i}
+          className="border border-[#1F1F1F] rounded-md p-4 bg-[#111111]"
+        >
+
+          <p className="text-xs text-gray-400 mb-1">
+            Shot {i + 1}
+          </p>
+
+          <p className="text-sm font-medium">
+            {shot.shot}
+          </p>
+
+          <p className="text-xs text-gray-400 mt-1">
+            {shot.description}
+          </p>
+
+        </div>
+
+      ))}
+
+    </div>
+
+    <div className="flex justify-end mt-6">
+
+      <button
+        className="text-sm text-gray-400"
+        onClick={() => setShowSceneModal(false)}
+      >
+        Close
       </button>
 
     </div>

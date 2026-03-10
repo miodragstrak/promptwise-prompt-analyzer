@@ -1,6 +1,7 @@
 import { runPromptPipeline } from "../../../lib/pipeline/analyzePrompt"
 import { generateVariations } from "../../../lib/analyzer/promptVariations"
 import { generateCinematic } from "../../../lib/analyzer/promptCinematic"
+import { generateScenePlan } from "@/lib/analyzer/scenePlanner"
 
 export async function POST(req: Request) {
 
@@ -19,6 +20,14 @@ export async function POST(req: Request) {
     const cinematic = await generateCinematic(prompt)
 
     return Response.json({ cinematic })
+
+  }
+
+  if (mode === "scene") {
+
+    const scenePlan = await generateScenePlan(prompt)
+
+    return Response.json({ scenePlan })
 
   }
 
